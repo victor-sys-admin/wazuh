@@ -505,6 +505,7 @@ public:
                                     {});
             },
             m_dbPath,
+            m_logTag,
             ElementsPerBulk,
             m_maxQueueSize,
             RetryDelay,
