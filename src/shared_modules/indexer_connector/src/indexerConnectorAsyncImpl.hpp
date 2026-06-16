@@ -381,7 +381,7 @@ public:
 
                     ++itemIndex;
                 }
-            });
+            }, m_logTag);
 
         m_dispatcher = std::make_unique<ThreadDispatchQueue>(
             [this](std::queue<std::string>& dataQueue)
