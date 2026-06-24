@@ -19,6 +19,16 @@
 
 namespace InventorySyncQueryBuilder
 {
+    /// Add a manager-authoritative cluster.name filter to a bool/must query
+    /// (no-op when @p clusterName is empty). GHSA-w865-hx9g-rmc8.
+    inline void addClusterScope(nlohmann::json& query, const std::string& clusterName)
+    {
+        if (!clusterName.empty())
+        {
+            query["query"]["bool"]["must"].push_back({{"term", {{"wazuh.cluster.name", clusterName}}}});
+        }
+    }
+
     /// @brief Build update query for agent metadata across all documents
     /// @param agentId Agent ID to match
     /// @param agentName New agent name

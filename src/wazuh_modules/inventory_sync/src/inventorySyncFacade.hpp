@@ -800,6 +800,7 @@ public:
                                                                                 res.context->ostype,
                                                                                 res.context->osversion,
                                                                                 res.context->globalVersion);
+                        InventorySyncQueryBuilder::addClusterScope(metadataQuery, m_clusterName);
 
                         // Execute the update using generic infrastructure method
                         m_indexerConnector->executeUpdateByQuery(res.context->indices, metadataQuery);
@@ -833,6 +834,7 @@ public:
                         // Build the groups update query using domain logic
                         auto groupsQuery = InventorySyncQueryBuilder::buildGroupsUpdateQuery(
                             res.context->agentId, res.context->groups, res.context->globalVersion);
+                        InventorySyncQueryBuilder::addClusterScope(groupsQuery, m_clusterName);
 
                         // Execute the update using generic infrastructure method
                         m_indexerConnector->executeUpdateByQuery(res.context->indices, groupsQuery);
@@ -874,6 +876,7 @@ public:
                                                                                res.context->osplatform,
                                                                                res.context->ostype,
                                                                                res.context->osversion);
+                        InventorySyncQueryBuilder::addClusterScope(metadataCheckQuery, m_clusterName);
 
                         logInfo(LOGGER_DEFAULT_TAG,
                                 "Disaster recovery: Checking and recovering metadata inconsistencies for agent %s "
@@ -913,6 +916,7 @@ public:
                         // Build the groups check query - compares groups and only updates mismatches
                         auto groupsCheckQuery =
                             InventorySyncQueryBuilder::buildGroupsCheckQuery(res.context->agentId, res.context->groups);
+                        InventorySyncQueryBuilder::addClusterScope(groupsCheckQuery, m_clusterName);
 
                         logInfo(LOGGER_DEFAULT_TAG,
                                 "Disaster recovery: Checking and recovering groups inconsistencies for agent %s across "
@@ -1053,7 +1057,7 @@ public:
                                           res.context->agentId.c_str());
                                 try
                                 {
-                                    m_indexerConnector->deleteByQuery(index, res.context->agentId);
+                                    m_indexerConnector->deleteByQuery(index, res.context->agentId, m_clusterName);
                                     hasDeleteByQueryEnqueued = true;
                                 }
                                 catch (const std::exception& e)
@@ -1079,7 +1083,7 @@ public:
                             {
                                 try
                                 {
-                                    m_indexerConnector->deleteByQuery(index, res.context->agentId);
+                                    m_indexerConnector->deleteByQuery(index, res.context->agentId, m_clusterName);
                                     hasDeleteByQueryEnqueued = true;
                                 }
                                 catch (const std::exception& e)
@@ -1123,16 +1127,27 @@ public:
                                     throw InventorySyncException("Invalid data message");
                                 }
 
-                                // Validate the per-document index against the inventory_sync domain rule
+                                // Per-document index must be in the agent's scope (GHSA-w865-hx9g-rmc8).
                                 const auto rawIndex = data->index() ? data->index()->string_view() : std::string_view();
-                                if (!isInventoryStateIndex(rawIndex))
+                                if (!isAgentScopedStateIndex(rawIndex))
                                 {
                                     logWarn(LOGGER_DEFAULT_TAG,
                                             "InventorySyncFacade::start: skipping bulk entry for session %llu - "
-                                            "index '%.*s' does not belong to wazuh-states-* family.",
+                                            "index '%.*s' is outside the agent's authorized state-index scope.",
                                             res.context->sessionId,
                                             static_cast<int>(rawIndex.size()),
                                             rawIndex.data());
+                                    continue;
+                                }
+
+                                // Vulnerabilities are manager-authored: agents may clean them
+                                // (DataClean) but never write documents. Reject forge attempts.
+                                if (rawIndex == "wazuh-states-vulnerabilities")
+                                {
+                                    logWarn(LOGGER_DEFAULT_TAG,
+                                            "InventorySyncFacade::start: rejecting agent write to "
+                                            "'wazuh-states-vulnerabilities' (session %llu).",
+                                            res.context->sessionId);
                                     continue;
                                 }
 
@@ -2042,9 +2057,9 @@ private:
 
         try
         {
-            // Delete all agent data from wazuh-states-* indexes using wildcard pattern
+            // Delete this agent's data across wazuh-states-*, scoped to this cluster.
             auto lock = m_indexerConnector->scopeLock();
-            m_indexerConnector->deleteByQuery(WAZUH_STATES_INDEX_PATTERN, agentId);
+            m_indexerConnector->deleteByQuery(WAZUH_STATES_INDEX_PATTERN, agentId, m_clusterName);
 
             logInfo(LOGGER_DEFAULT_TAG,
                     "InventorySyncFacade::deleteAgent: Successfully deleted data for agent '%s'",

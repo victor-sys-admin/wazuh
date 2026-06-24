@@ -18,6 +18,7 @@
 #include "responseDispatcher.hpp"
 #include "rocksDBWrapper.hpp"
 #include "threadDispatcher.h"
+#include <array>
 #include <cctype>
 #include <functional>
 #include <memory>
@@ -40,18 +41,27 @@ struct Response
 using WorkersQueue = Utils::AsyncValueDispatcher<std::vector<char>, std::function<void(const std::vector<char>&)>>;
 using IndexerQueue = Utils::AsyncValueDispatcher<Response, std::function<void(const Response&)>>;
 
-/**
- * @brief Inventory-sync business rule: an index name must belong to the
- *        wazuh-states-* family and have a non-empty suffix.
- *
- * The connector layer applies an independent safety check (non-empty, only
- * [a-zA-Z0-9._*-]) that prevents URL/JSON injection regardless of caller. This
- * helper only encodes the inventory_sync-specific domain rule.
- */
-inline bool isInventoryStateIndex(std::string_view idx) noexcept
+/// Is @p idx a state index an agent session may target? Accepts the agent's own
+/// scope (inventory/vulnerabilities/fim/sca), rejects manager-governance indices.
+/// Index names are agent-supplied (GHSA-w865-hx9g-rmc8).
+inline bool isAgentScopedStateIndex(std::string_view idx) noexcept
 {
-    constexpr std::string_view kPrefix = "wazuh-states-";
-    return idx.starts_with(kPrefix) && idx.size() > kPrefix.size();
+    // Manager-only: never reachable from an agent session.
+    constexpr std::array<std::string_view, 3> kManagerOnly {
+        "wazuh-states-agent-management",
+        "wazuh-states-cluster-",
+        "wazuh-states-manager-",
+    };
+    for (const auto prefix : kManagerOnly)
+    {
+        if (idx == prefix || idx.starts_with(prefix))
+        {
+            return false;
+        }
+    }
+
+    return idx.starts_with("wazuh-states-inventory-") || idx == "wazuh-states-vulnerabilities" ||
+           idx.starts_with("wazuh-states-fim-") || idx == "wazuh-states-sca" || idx.starts_with("wazuh-states-sca-");
 }
 
 class AgentSessionException : public std::exception
@@ -148,9 +158,7 @@ public:
             }
         }
 
-        // Extract indices. Only keep entries that belong to the wazuh-states-* family
-        // (inventory_sync's domain rule). The connector layer applies an additional
-        // safety check that rejects characters outside [a-zA-Z0-9._*-].
+        // Keep only indices within the agent's scope (see isAgentScopedStateIndex).
         std::vector<std::string> indices;
 
         if (data->index())
@@ -160,10 +168,10 @@ public:
                 if (index)
                 {
                     auto entry = index->str();
-                    if (!isInventoryStateIndex(entry))
+                    if (!isAgentScopedStateIndex(entry))
                     {
                         logWarn(LOGGER_DEFAULT_TAG,
-                                "Start: ignoring index '%s' (does not belong to wazuh-states-* family) for "
+                                "Start: rejecting index '%s' (outside the agent's authorized state-index scope) for "
                                 "agent '%.*s' (session %llu).",
                                 entry.c_str(),
                                 static_cast<int>(agentId.size()),
@@ -336,10 +344,10 @@ public:
         if (data->index())
         {
             auto candidate = data->index()->str();
-            if (!isInventoryStateIndex(candidate))
+            if (!isAgentScopedStateIndex(candidate))
             {
                 logWarn(LOGGER_DEFAULT_TAG,
-                        "ChecksumModule: ignoring index '%s' (does not belong to wazuh-states-* family) for "
+                        "ChecksumModule: rejecting index '%s' (outside the agent's authorized state-index scope) for "
                         "session %llu.",
                         candidate.c_str(),
                         m_context->sessionId);
@@ -464,10 +472,10 @@ public:
         if (data->index())
         {
             std::string index = data->index()->str();
-            if (!isInventoryStateIndex(index))
+            if (!isAgentScopedStateIndex(index))
             {
                 logWarn(LOGGER_DEFAULT_TAG,
-                        "DataClean: ignoring index '%s' (does not belong to wazuh-states-* family) for "
+                        "DataClean: rejecting index '%s' (outside the agent's authorized state-index scope) for "
                         "session %llu, seq %llu.",
                         index.c_str(),
                         m_context->sessionId,
