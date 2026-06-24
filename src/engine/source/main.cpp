@@ -649,14 +649,12 @@ int main(int argc, char* argv[])
             auto iocSyncInterval = confManager.get<std::size_t>(conf::key::IOC_SYNC_INTERVAL);
             if (iocSyncInterval > 0)
             {
-                scheduler->scheduleTask("ioc-sync-task",
-                                        scheduler::TaskConfig {.interval = iocSyncInterval,
-                                                               .runImmediately = true,
-                                                               .CPUPriority = 0,
-                                                               .taskFunction = [iocSyncService]()
-                                                               {
-                                                                   iocSyncService->synchronize();
-                                                               }});
+                scheduler->scheduleTask(
+                    "ioc-sync-task",
+                    scheduler::TaskConfig {.interval = iocSyncInterval,
+                                           .runImmediately = true,
+                                           .CPUPriority = 0,
+                                           .taskFunction = [iocSyncService]() { iocSyncService->synchronize(); }});
                 LOG_DEBUG("IOC Sync task scheduled with interval: {} seconds, {} max retries, {} seconds for retry "
                           "interval and {} for batch size",
                           iocSyncInterval,
@@ -690,9 +688,7 @@ int main(int argc, char* argv[])
                                            .runImmediately = true,
                                            .CPUPriority = 0,
                                            .taskFunction = [geoManager, manifestUrl, cityPath, asnPath]()
-                                           {
-                                               geoManager->remoteUpsert(manifestUrl, cityPath, asnPath);
-                                           }});
+                                           { geoManager->remoteUpsert(manifestUrl, cityPath, asnPath); }});
                 LOG_DEBUG("Geo sync scheduled with interval: {} seconds.", geoSyncInterval);
             }
             else
@@ -724,14 +720,12 @@ int main(int argc, char* argv[])
         if (enableProcessing)
         {
             const auto remoteConfSyncInterval = confManager.get<std::size_t>(conf::key::REMOTE_CONF_SYNC_INTERVAL);
-            scheduler->scheduleTask("remote-conf-sync",
-                                    scheduler::TaskConfig {.interval = remoteConfSyncInterval,
-                                                           .runImmediately = true,
-                                                           .CPUPriority = 0,
-                                                           .taskFunction = [remoteConf]()
-                                                           {
-                                                               remoteConf->synchronize();
-                                                           }});
+            scheduler->scheduleTask(
+                "remote-conf-sync",
+                scheduler::TaskConfig {.interval = remoteConfSyncInterval,
+                                       .runImmediately = true,
+                                       .CPUPriority = 0,
+                                       .taskFunction = [remoteConf]() { remoteConf->synchronize(); }});
             LOG_DEBUG("Remote configuration synchronize scheduled with interval: {} seconds.", remoteConfSyncInterval);
         }
 
@@ -829,9 +823,7 @@ int main(int argc, char* argv[])
                                                      .runImmediately = false,
                                                      .CPUPriority = 0,
                                                      .taskFunction = [metricsWriter, metricsManager]()
-                                                     {
-                                                         metricsManager->writeAllMetrics(metricsWriter);
-                                                     }};
+                                                     { metricsManager->writeAllMetrics(metricsWriter); }};
 
                 scheduler->scheduleTask("MetricsLogger", std::move(metricsConfig));
                 LOG_INFO("Metrics stream logging enabled (interval: {} seconds, on-demand channel creation).",
