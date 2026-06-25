@@ -138,8 +138,11 @@ public:
         : m_httpRequest(httpRequest ? httpRequest : &THttpRequest::instance())
         , m_queueId(std::move(queueId))
         , m_dbPath((std::filesystem::path(std::move(basePath)) / m_queueId).string())
-        , m_logFn(LogFn{callerName}.compose("indexer-connector"))
+        , m_logFn {}
     {
+        Log::setModuleLogFn(LogFn{callerName});
+        m_logFn = makeLibLogFn("indexer-connector");
+
         if (m_queueId.empty())
         {
             throw IndexerConnectorException("queueId cannot be empty: each IndexerConnectorAsync instance "
@@ -202,8 +205,8 @@ public:
         }
 
         std::lock_guard lock(G_CREDENTIAL_MUTEX);
-        static auto username = Keystore::get(INDEXER_COLUMN, USER_KEY, m_logFn);
-        static auto password = Keystore::get(INDEXER_COLUMN, PASSWORD_KEY, m_logFn);
+        static auto username = Keystore::get(INDEXER_COLUMN, USER_KEY);
+        static auto password = Keystore::get(INDEXER_COLUMN, PASSWORD_KEY);
         if (username.empty() && password.empty())
         {
             username = "wazuh-server";
@@ -381,8 +384,7 @@ public:
 
                     ++itemIndex;
                 }
-            },
-            m_logFn);
+            });
 
         m_dispatcher = std::make_unique<ThreadDispatchQueue>(
             [this](std::queue<std::string>& dataQueue)
@@ -505,7 +507,6 @@ public:
                                     {});
             },
             m_dbPath,
-            m_logFn,
             ElementsPerBulk,
             m_maxQueueSize,
             RetryDelay,
