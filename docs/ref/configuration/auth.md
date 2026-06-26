@@ -47,10 +47,12 @@ Remove all previous keys for an agent when it re-enrolls with the same name.
 
 Require agents to provide a shared enrollment password.
 
-- **Default value**: `no`
+- **Default value**: `no` (the configuration shipped by the installer sets it to `yes`)
 - **Allowed values**: `yes`, `no`
 
-When enabled, place the password in `/var/wazuh-manager/etc/authd.pass` (one line, no trailing newline).
+When enabled, the password is read from `/var/wazuh-manager/etc/authd.pass` (a single line). If the file does not exist, `wazuh-authd` generates a random password on start, stores it in that file, and reuses it on later starts; the password is never written to the logs. If the file exists but is empty or invalid, `wazuh-authd` does not start. In a cluster, the password belongs to the master and is distributed to the workers automatically; a worker rejects enrollment until it receives the file.
+
+**Password rotation:** The generated password persists across restarts. To rotate it (for example after a security incident), delete `/var/wazuh-manager/etc/authd.pass` on the master and restart `wazuh-authd`. A new random password will be generated, persisted, and distributed to workers automatically. The reuse of an existing password is logged at `INFO` level on every start.
 
 ### remote_enrollment
 
@@ -173,7 +175,7 @@ Accept enrollment from agents running a newer Wazuh version than the manager.
   <port>1515</port>
   <use_source_ip>no</use_source_ip>
   <purge>yes</purge>
-  <use_password>no</use_password>
+  <use_password>yes</use_password>
   <ssl_verify_host>no</ssl_verify_host>
   <ssl_manager_cert>/var/wazuh-manager/etc/sslmanager.cert</ssl_manager_cert>
   <ssl_manager_key>/var/wazuh-manager/etc/sslmanager.key</ssl_manager_key>
