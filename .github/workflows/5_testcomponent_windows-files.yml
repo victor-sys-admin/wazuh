@@ -36,10 +36,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   build:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
@@ -70,10 +66,16 @@ jobs:
           rm -f src/bin_files/libwinpthread-1.dll
           rm -f src/bin_files/libgcc_s_dw2-1.dll
           rm -f src/bin_files/libstdc++-6.dll
+      - name: Set up AWS CLI
+        if: always()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CI_INTERNAL_DEVELOPMENT_BUCKET_USER_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CI_INTERNAL_DEVELOPMENT_BUCKET_USER_SECRET_KEY }}
+          aws-region: ${{ secrets.CI_AWS_REGION }}
       - name: Upload Artifact binaries
         uses: ./.github/actions/upload_s3_artifact
         with:
-          aws_region: ${{ secrets.CI_AWS_REGION }}
           name: binaries
           path: src/bin_files
   check_binaries_details:
@@ -88,10 +90,16 @@ jobs:
         with:
           python-version-file: ".github/workflows/.python-version"
           architecture: x64
+      - name: Set up AWS CLI
+        if: always()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CI_INTERNAL_DEVELOPMENT_BUCKET_USER_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CI_INTERNAL_DEVELOPMENT_BUCKET_USER_SECRET_KEY }}
+          aws-region: ${{ secrets.CI_AWS_REGION }}
       - name: Download Artifact binaries
         uses: ./.github/actions/download_s3_artifact
         with:
-          aws_region: ${{ secrets.CI_AWS_REGION }}
           name: binaries
           path: C:\binaries\
       - name: Install dependencies

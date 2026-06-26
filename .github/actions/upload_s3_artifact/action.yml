@@ -5,11 +5,10 @@ description: >
   (see https://github.com/wazuh/wazuh-automation/issues/3502).
   The artifact is archived with 7-Zip and uploaded to:
     <bucket>/<repository>/<workflow>/<name>/artifacts_<run_id>.zip
-  AWS credentials are configured by the action itself via OIDC, so the calling
-  job only needs `permissions: id-token: write`. Pass the region via the
-  `aws_region` input (set it to the CI_AWS_REGION secret at the call site).
+  AWS credentials and region must already be configured in the job (e.g. a
+  "Set up AWS CLI" step using aws-actions/configure-aws-credentials).
   Requires `7z` and the AWS CLI on the runner (present on the CodeBuild and
-  GitHub-hosted windows-2025 images used by these workflows).
+  GitHub-hosted ubuntu-24.04 / windows-2025 images used by these workflows).
 
 inputs:
   name:
@@ -22,14 +21,6 @@ inputs:
     description: "Target S3 bucket URI."
     required: false
     default: "s3://xdrsiem-ci-dev-internal"
-  aws_role:
-    description: "IAM role (OIDC) to assume for S3 access."
-    required: false
-    default: "arn:aws:iam::966237403726:role/oidc-wazuh-repository"
-  aws_region:
-    description: "Fallback AWS region, used only when the AWS_REGION environment variable is not set."
-    required: false
-    default: "us-east-1"
 
 runs:
   using: "composite"
@@ -52,12 +43,6 @@ runs:
         # Make the artifact name safe for use as a single S3 key segment
         safe_name="$(printf '%s' "$ARTIFACT_NAME" | tr ' /\\:' '____')"
         echo "s3_uri=${BUCKET}/${REPO_NAME}/${wf}/${safe_name}/artifacts_${RUN_ID}.zip" >> "$GITHUB_OUTPUT"
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v6
-      with:
-        role-to-assume: ${{ inputs.aws_role }}
-        aws-region: ${{ inputs.aws_region }}
 
     - name: "Upload ${{ inputs.name }} to S3 (Unix)"
       if: runner.os != 'Windows'
