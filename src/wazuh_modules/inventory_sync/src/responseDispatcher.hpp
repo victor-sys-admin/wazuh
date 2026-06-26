@@ -51,7 +51,7 @@ class ResponseDispatcherImpl
 {
 private:
     std::unique_ptr<TQueue> m_responseDispatcher;
-    LogFn m_logFn;
+    const LogFn& m_logFn;
 
 public:
     explicit ResponseDispatcherImpl()
@@ -109,6 +109,7 @@ public:
 
     explicit ResponseDispatcherImpl(TQueue* responseDispatcher)
         : m_responseDispatcher(responseDispatcher)
+        , m_logFn(Log::currentModuleLogFn())
     {
     }
 
