@@ -12,6 +12,15 @@ from wazuh.rbac import orm
 # Sets the find_item recursive max depth
 MAX_FIND_ITEM_DEPTH = 8
 
+
+class AuthContextDepthExceeded(Exception):
+    """Raised when find_item exceeds MAX_FIND_ITEM_DEPTH levels of recursion.
+
+    This is a business-logic depth limit, distinct from CPython's built-in
+    RecursionError (stack overflow).  Callers that want to suppress both must
+    catch each type explicitly.
+    """
+
 logger = logging.getLogger('wazuh')
 
 class RBAChecker:
@@ -313,7 +322,7 @@ class RBAChecker:
 
         if depth >= MAX_FIND_ITEM_DEPTH:
             logger.warning("auth_context depth limit reached for role_id=%s", role_id)
-            raise RecursionError
+            raise AuthContextDepthExceeded
 
         mode = self.set_mode(mode, role_id)
 
@@ -388,7 +397,11 @@ class RBAChecker:
                     if (rule['id'] > orm.MAX_ID_RESERVED or self.user_id == 2) and self.check_rule(rule['rule']):
                         list_roles.append(role['id'])
                         break
+                except AuthContextDepthExceeded:
+                    # Auth context was nested beyond MAX_FIND_ITEM_DEPTH; skip this role.
+                    break
                 except RecursionError:
+                    # CPython call-stack overflow; skip this role.
                     break
         return list_roles
 
