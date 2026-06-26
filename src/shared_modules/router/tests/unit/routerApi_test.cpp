@@ -35,7 +35,7 @@ protected:
     void SetUp() override
     {
         // Initialize router for each test
-        router_initialize(testLogCallback);
+        router_initialize(testLogCallback, "test");
     }
 
     void TearDown() override
@@ -51,10 +51,10 @@ protected:
 TEST_F(RouterAPITest, TestRouterInitialize)
 {
     // Test with valid callback
-    EXPECT_EQ(0, router_initialize(testLogCallback));
+    EXPECT_EQ(0, router_initialize(testLogCallback, "test"));
 
     // Test with null callback
-    EXPECT_EQ(0, router_initialize(nullptr));
+    EXPECT_EQ(0, router_initialize(nullptr, "test"));
 }
 
 /*
@@ -683,7 +683,7 @@ static std::vector<uint8_t> createStartMessage(const std::string& agentId)
 
 TEST_F(RouterAPITest, TestProviderSendSyncValidMatch)
 {
-    router_initialize(NULL);
+    router_initialize(NULL, "test");
 
     const char* providerName = "inventory-sync";
     ROUTER_PROVIDER_HANDLE handle = router_provider_create(providerName, true);
@@ -701,7 +701,7 @@ TEST_F(RouterAPITest, TestProviderSendSyncValidMatch)
 
 TEST_F(RouterAPITest, TestProviderSendSyncSpoofingDetected)
 {
-    router_initialize(NULL);
+    router_initialize(NULL, "test");
 
     const char* providerName = "inventory-sync";
     ROUTER_PROVIDER_HANDLE handle = router_provider_create(providerName, true);
@@ -720,7 +720,7 @@ TEST_F(RouterAPITest, TestProviderSendSyncSpoofingDetected)
 
 TEST_F(RouterAPITest, TestProviderSendSyncEmptyAgentId)
 {
-    router_initialize(NULL);
+    router_initialize(NULL, "test");
 
     const char* providerName = "inventory-sync";
     ROUTER_PROVIDER_HANDLE handle = router_provider_create(providerName, true);
@@ -739,7 +739,7 @@ TEST_F(RouterAPITest, TestProviderSendSyncEmptyAgentId)
 
 TEST_F(RouterAPITest, TestProviderSendSyncNonNumericAgentId)
 {
-    router_initialize(NULL);
+    router_initialize(NULL, "test");
 
     const char* providerName = "inventory-sync";
     ROUTER_PROVIDER_HANDLE handle = router_provider_create(providerName, true);
@@ -758,7 +758,7 @@ TEST_F(RouterAPITest, TestProviderSendSyncNonNumericAgentId)
 
 TEST_F(RouterAPITest, TestProviderSendSyncNullAuthAgentId)
 {
-    router_initialize(NULL);
+    router_initialize(NULL, "test");
 
     const char* providerName = "inventory-sync";
     ROUTER_PROVIDER_HANDLE handle = router_provider_create(providerName, true);
@@ -777,7 +777,7 @@ TEST_F(RouterAPITest, TestProviderSendSyncNullAuthAgentId)
 
 TEST_F(RouterAPITest, TestProviderSendSyncLeadingZeros)
 {
-    router_initialize(NULL);
+    router_initialize(NULL, "test");
 
     const char* providerName = "inventory-sync";
     ROUTER_PROVIDER_HANDLE handle = router_provider_create(providerName, true);
