@@ -548,7 +548,7 @@ int main(int argc, char **argv)
                 authpass = w_authd_read_password(AUTHD_PASS);
 
                 if (authpass) {
-                    mdebug1("Accepting connections on port %hu. Using password synchronized from the master node.", config.port);
+                    minfo("Accepting connections on port %hu. Using password synchronized from the master node.", config.port);
                 } else {
                     mwarn("Shared-password enrollment is enabled but '%s' has not been synchronized from the master node yet. Enrollment requests will be rejected until it is available.", AUTHD_PASS);
                 }
@@ -687,6 +687,7 @@ static void process_message(struct client *client) {
             if (fresh) {
                 os_free(authpass);
                 authpass = fresh;
+                minfo("Enrollment password reloaded from '%s'.", AUTHD_PASS);
             }
             /* Record the mtime regardless of success: avoids re-logging a corrupt file
              * on every request until the file is replaced with a valid one. */
